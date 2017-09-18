@@ -8,6 +8,22 @@ IMSIZE = 128
 filename = '/media/NAS_SHARED/imagenet/imagenet_train_labeled_' + str(IMSIZE) + '.tfrecords'
 
 
+def get_vars(self):
+    t_vars = tf.trainable_variables()
+    self.d_vars = [var for var in t_vars if var.name.startswith('d_')]
+    self.g_vars = [var for var in t_vars if var.name.startswith('g_')]
+
+    for x in self.d_vars:
+        assert x not in self.g_vars
+
+    for x in self.g_vars:
+        assert x not in self.d_vars
+
+    for x in t_vars:
+        assert x in  self.g_vars or x in self.d_vars, x.name
+
+    self.all_vars = t_vars
+
 def build_model(self):
     all_d_grads = []
     all_g_grads = []
