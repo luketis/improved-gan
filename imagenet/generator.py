@@ -69,7 +69,7 @@ class Generator(object):
         z_ = reuse_wrapper(linear(z, dcgan.gf_dim*8*4*4, 'g_h0_lin', with_w=make_vars), 'h0_w', 'h0_b')
 
         h0 = tf.reshape(z_, [-1, 4, 4, dcgan.gf_dim * 8])
-        h0 = tf.nn.relu(dcgan.vbn(h0, "g_vbn_0"))
+        h0 = tf.nn.relu(dcgan.virt_batch_norm(h0, "g_virt_batch_norm_0"))
         h0z = make_z([dcgan.batch_size, 4, 4, dcgan.gf_dim],
                                    minval=-1., maxval=1.,
                                    name='h0z', dtype=tf.float32)
@@ -79,7 +79,7 @@ class Generator(object):
         h1 = reuse_wrapper(deconv2d(h0,
             [dcgan.batch_size, 8, 8, dcgan.gf_dim*4], name='g_h1', with_w=make_vars),
             'h1_w', 'h1_b')
-        h1 = tf.nn.relu(dcgan.vbn(h1, "g_vbn_1"))
+        h1 = tf.nn.relu(dcgan.virt_batch_norm(h1, "g_virt_batch_norm_1"))
         h1z = make_z([dcgan.batch_size, 8, 8, dcgan.gf_dim],
                                    minval=-1., maxval=1.,
                                    name='h1z', dtype=tf.float32)
@@ -90,7 +90,7 @@ class Generator(object):
         h2 = reuse_wrapper(deconv2d(h1,
             [dcgan.batch_size, 16, 16, dcgan.gf_dim*2], name='g_h2', with_w=make_vars),
             'h2_w', 'h2_b')
-        h2 = tf.nn.relu(dcgan.vbn(h2, "g_vbn_2"))
+        h2 = tf.nn.relu(dcgan.virt_batch_norm(h2, "g_virt_batch_norm_2"))
         half = dcgan.gf_dim // 2
         if half == 0:
             half = 1
@@ -108,7 +108,7 @@ class Generator(object):
             h3_name = "h3_relu_first"
         else:
             h3_name = "h3_relu_reuse"
-        h3 = tf.nn.relu(dcgan.vbn(h3, "g_vbn_3"), name=h3_name)
+        h3 = tf.nn.relu(dcgan.virt_batch_norm(h3, "g_virt_batch_norm_3"), name=h3_name)
         print "h3 shape: ", h3.get_shape()
 
         quarter = dcgan.gf_dim // 4
@@ -126,7 +126,7 @@ class Generator(object):
                 [dcgan.batch_size, 64, 64, dcgan.gf_dim*1],
                 name='g_h4', with_w=make_vars),
             'h4_w', 'h4_b')
-        h4 = tf.nn.relu(dcgan.vbn(h4, "g_vbn_4"))
+        h4 = tf.nn.relu(dcgan.virt_batch_norm(h4, "g_virt_batch_norm_4"))
         print "h4 shape: ", h4.get_shape()
 
         eighth = dcgan.gf_dim // 8
@@ -142,7 +142,7 @@ class Generator(object):
                 [dcgan.batch_size, 128, 128, dcgan.gf_dim * 1],
                 name='g_h5', with_w=make_vars),
             'h5_w', 'h5_b')
-        h5 = tf.nn.relu(dcgan.vbn(h5, "g_vbn_5"))
+        h5 = tf.nn.relu(dcgan.virt_batch_norm(h5, "g_virt_batch_norm_5"))
         print "h5 shape: ", h5.get_shape()
 
         sixteenth = dcgan.gf_dim // 16

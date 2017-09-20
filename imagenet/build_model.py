@@ -1,11 +1,49 @@
 import tensorflow as tf
-from model import sigmoid_kl_with_logits
 from ops import variables_on_gpu0
 from ops import avg_grads
-from model import read_and_decode_with_labels
-from model import get_vars
 IMSIZE = 128
 filename = '/media/NAS_SHARED/imagenet/imagenet_train_labeled_' + str(IMSIZE) + '.tfrecords'
+
+
+def read_and_decode(filename_queue, labels=False):
+    reader = tf.TFRecordReader()
+    _, serialized_example = reader.read(filename_queue)
+    feat_dict = {
+                 'image_raw': tf.FixedLenFeature([], tf.string),
+                 'label' : tf.FixedLenFeature([], tf.int64)
+                } if labels else {'image_raw': tf.FixedLenFeature([], tf.string),}
+
+    features = tf.parse_single_example(
+            serialized_example,
+            features=feat_dict)
+
+    image = tf.decode_raw(features['image_raw'], tf.uint8)
+    image.set_shape(128 * 128 * 3)
+    image = tf.reshape(image, [128, 128, 3])
+
+    image = tf.cast(image, tf.float32) * (2. / 255) - 1.
+
+    if labels:
+        label = tf.cast(features['label'], tf.int32)
+        return image, label
+
+    return image
+
+def read_and_decode_with_labels(filename_queue):
+    return read_and_decode(filename_queue, labels=True)
+
+
+def sigmoid_kl_with_logits(logits, targets):
+    # broadcasts the same target value across the whole batch
+    # this is implemented so awkwardly because tensorflow lacks an x log x op
+    assert isinstance(targets, float)
+
+    if targets in [0., 1.]:
+        entropy = 0.
+    else:
+        entropy = - targets * np.log(targets) - (1. - targets) * np.log(1. - targets)
+
+    return tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.ones_like(logits) * targets) - entropy
 
 
 def get_vars(self):

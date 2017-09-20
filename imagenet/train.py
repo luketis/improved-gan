@@ -1,5 +1,5 @@
 import tensorflow as tf
-from model import save_images
+from utils import save_images
 import time
 import numpy as np
 
