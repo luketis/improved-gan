@@ -52,7 +52,7 @@ def main(argv):
         class_str = f.split('/')[-2]
         label = str_to_int[class_str]
         if i % 1 == 0:
-            print i, '\t',label
+            print(i, '\t',label)
         example = tf.train.Example(features=tf.train.Features(feature={
             'height': _int64_feature(IMSIZE),
             'width': _int64_feature(IMSIZE),

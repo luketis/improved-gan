@@ -114,7 +114,7 @@ def train(self, config):
                 save_time = time.time()
                 self.save(config.checkpoint_dir, counter)
     except tf.errors.OutOfRangeError:
-        print "Done training; epoch limit reached."
+        print("Done training; epoch limit reached.")
     finally:
         coord.request_stop()
 

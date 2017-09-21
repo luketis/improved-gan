@@ -28,6 +28,15 @@ class DCGAN(object):
                  sample_size=64,
 		 out_init_b=0.,
                  out_stddev=.15):
+
+        self.disable_virt_batch_norm = disable_virt_batch_norm
+        self.devices = devices
+        self.d_label_smooth = d_label_smooth
+        self.out_init_b = out_init_b
+        self.out_stddev = out_stddev
+        self.config = config
+        self.generator_target_prob = generator_target_prob
+
         """
 
         Args:
@@ -41,13 +50,6 @@ class DCGAN(object):
             dfc_dim: (optional) Dimension of discrim units for fully connected layer. [1024]
             c_dim: (optional) Dimension of image color. [3]
         """
-        self.disable_virt_batch_norm = disable_virt_batch_norm
-        self.devices = devices
-        self.d_label_smooth = d_label_smooth
-        self.out_init_b = out_init_b
-	self.out_stddev = out_stddev
-        self.config = config
-        self.generator_target_prob = generator_target_prob
 
         if generator is not None:
             generator.dcgan = self
