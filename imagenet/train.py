@@ -83,8 +83,8 @@ def train(self, config):
                 d_loss = errD_fake + errD_real + errD_class
                 sec_per_batch = (print_time - start_time) / (idx + 1.)
                 sec_this_batch = print_time - batch_start_time
-                print "[Batch %(idx)d] time: %(total_time)4.4f, d_loss: %(d_loss).8f, g_loss: %(errG).8f, d_loss_real: %(errD_real).8f, d_loss_fake: %(errD_fake).8f, d_loss_class: %(errD_class).8f, sec/batch: %(sec_per_batch)4.4f, sec/this batch: %(sec_this_batch)4.4f" \
-                    % locals()
+                print("[Batch %(idx)d] time: %(total_time)4.4f, d_loss: %(d_loss).8f, g_loss: %(errG).8f, d_loss_real: %(errD_real).8f, d_loss_fake: %(errD_fake).8f, d_loss_class: %(errD_class).8f, sec/batch: %(sec_per_batch)4.4f, sec/this batch: %(sec_this_batch)4.4f" \
+                    % locals())
 
             if (idx < 300 and idx % 10 == 0) or time.time() - sample_time > 300:
                 sample_time = time.time()

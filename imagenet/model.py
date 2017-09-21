@@ -44,7 +44,7 @@ class DCGAN(object):
         self.disable_virt_batch_norm = disable_virt_batch_norm
         self.devices = devices
         self.d_label_smooth = d_label_smooth
-	self.out_init_b = out_init_b
+        self.out_init_b = out_init_b
 	self.out_stddev = out_stddev
         self.config = config
         self.generator_target_prob = generator_target_prob
@@ -286,6 +286,21 @@ class VIRT_BATCH_NORM(object):
     Virtual Batch Normalization
     """
 
+    def reshape(self, x, shape):
+        orig_shape = shape
+
+        if len(shape) == 2:
+            x = tf.reshape(x, [shape[0], 1, 1, shape[1]])
+        elif len(shape) == 1:
+            x = tf.reshape(x, [shape[0], 1, 1, 1])
+        else:
+            assert False, shape
+            
+        shape = x.get_shape().as_list()
+
+        return x, shape, orig_shape
+
+
     def __init__(self, x, name, epsilon=1e-5, half=None, log=False, per_pixel=False):
         """
         x is the reference batch
@@ -298,16 +313,7 @@ class VIRT_BATCH_NORM(object):
         self.log = log
         self.per_pixel = per_pixel
         if needs_reshape:
-            orig_shape = shape
-
-            if len(shape) == 2:
-                x = tf.reshape(x, [shape[0], 1, 1, shape[1]])
-            elif len(shape) == 1:
-                x = tf.reshape(x, [shape[0], 1, 1, 1])
-            else:
-                assert False, shape
-
-            shape = x.get_shape().as_list()
+            x, shape, orig_shape = self.reshape(x, shape)
 
         with tf.variable_scope(name) as scope:
 
@@ -322,8 +328,7 @@ class VIRT_BATCH_NORM(object):
                 half = tf.slice(x, [0, 0, 0, 0],
                                       [shape[0] // 2, shape[1], shape[2], shape[3]])
             elif self.half == 2:
-                half = tf.slice(x, [shape[0] // 2, 0, 0, 0],
-                                      [shape[0] // 2, shape[1], shape[2], shape[3]])
+                half = slice_x_half_batch_norm(x, shape)
             else:
                 assert False
 
@@ -354,16 +359,8 @@ class VIRT_BATCH_NORM(object):
         needs_reshape = len(shape) != 4
 
         if needs_reshape:
-            orig_shape = shape
+            x, shape, orig_shape = self.reshape(x, shape)
 
-            if len(shape) == 2:
-                x = tf.reshape(x, [shape[0], 1, 1, shape[1]])
-            elif len(shape) == 1:
-                x = tf.reshape(x, [shape[0], 1, 1, 1])
-            else:
-                assert False, shape
-
-            shape = x.get_shape().as_list()
         with tf.variable_scope(self.name) as scope:
 
             new_coeff = 1. / (self.batch_size + 1.)

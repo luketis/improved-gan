@@ -53,8 +53,7 @@ class batch_norm(object):
             if self.half is None:
                 moments_input = x
             elif self.half == "first" or self.half == "second":
-                moments_imput = tf.slice(x, [shape[0] // 2, 0, 0, 0],
-                                         [shape[0] // 2, shape[1], shape[2], shape[3]])
+                moments_imput = slice_x_half_batch_norm(x, shape)
 
             self.mean, self.variance = tf.nn.moments(x, [0, 1, 2])
 
@@ -90,6 +89,14 @@ class batch_norm_cross(batch_norm):
             self.epsilon = epsilon
             self.name=name
 
+    def get_variable(self, name, shape, mean, stddev=0):
+        if name[:-1] == "gamma":
+            initializer = tf.random_normal_initializer(mean, stddev)
+        else:
+            initializer = tf.constant_initializer(mean)
+
+        return tf.get_variable(name, [shape[-1] // 2],
+                                initializer=initializer)
     def __call__(self, x):
 
         shape = x.get_shape().as_list()
@@ -100,25 +107,19 @@ class batch_norm_cross(batch_norm):
             shape, x = self.reshape(shape, x)
 
         with tf.variable_scope(self.name) as scope:
-            self.gamma0 = tf.get_variable("gamma0", [shape[-1] // 2],
-                                initializer=tf.random_normal_initializer(1., 0.02))
-            self.beta0 = tf.get_variable("beta0", [shape[-1] // 2],
-                                initializer=tf.constant_initializer(0.))
-            self.gamma1 = tf.get_variable("gamma1", [shape[-1] // 2],
-                                initializer=tf.random_normal_initializer(1., 0.02))
-            self.beta1 = tf.get_variable("beta1", [shape[-1] // 2],
-                                initializer=tf.constant_initializer(0.))
+            self.gamma0 = self.get_variable("gamma0", shape, 1., stddev=0.02)
+            self.beta0 = self.get_variable("beta0", shape, 0.)
+            self.gamma1 = self.get_variable("gamma1", shape, 1., 0.02)
+            self.beta1 = self.get_variable("beta1", shape, 0.)
 
-            ch0 = tf.slice(x, [0, 0, 0, 0],
-                              [shape[0], shape[1], shape[2], shape[3] // 2])
-            ch1 = tf.slice(x, [0, 0, 0, shape[3] // 2],
-                              [shape[0], shape[1], shape[2], shape[3] // 2])
+            slice_shape = [shape[0], shape[1], shape[2], shape[3] // 2]
+            slice_shape0 = [shape[0] // 2, shape[1], shape[2], shape[3] // 2]
+            ch0 = tf.slice(x, [0, 0, 0, 0], slice_shape)
+            ch1 = tf.slice(x, [0, 0, 0, shape[3] // 2], slice_shape)
 
-            ch0b0 = tf.slice(ch0, [0, 0, 0, 0],
-                                  [shape[0] // 2, shape[1], shape[2], shape[3] // 2])
+            ch0b0 = tf.slice(ch0, [0, 0, 0, 0], slice_shape0)
 
-            ch1b1 = tf.slice(ch1, [shape[0] // 2, 0, 0, 0],
-                                  [shape[0] // 2, shape[1], shape[2], shape[3] // 2])
+            ch1b1 = tf.slice(ch1, [shape[0] // 2, 0, 0, 0], slice_shape0)
 
 
             ch0_mean, ch0_variance = tf.nn.moments(ch0b0, [0, 1, 2])
@@ -197,18 +198,43 @@ def conv_cond_concat(x, y):
     y_shapes = y.get_shape()
     return tf.concat(3, [x, y*tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
 
+def get_variable_w(k_h, k_w, input_, output_dim, stddev):
+    return tf.get_variable('w', [k_h, k_w, input_.get_shape()[-1], output_dim],
+                            initializer=tf.truncated_normal_initializer(stddev=stddev))
+
 def conv2d(input_, output_dim,
            k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
            name="conv2d"):
     with tf.variable_scope(name):
-        w = tf.get_variable('w', [k_h, k_w, input_.get_shape()[-1], output_dim],
-                            initializer=tf.truncated_normal_initializer(stddev=stddev))
+        w = get_variable_w(k_h, k_w, input_, output_dim, stddev)
         conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
 
         biases = tf.get_variable('biases', [output_dim], initializer=tf.constant_initializer(0.0))
         conv = tf.nn.bias_add(conv, biases)
 
         return conv
+
+def constrained_conv2d(input_, output_dim,
+           k_h=6, k_w=6, d_h=2, d_w=2, stddev=0.02,
+           name="conv2d"):
+    assert k_h % d_h == 0
+    assert k_w % d_w == 0
+    # constrained to have stride be a factor of kernel width
+    # this is intended to reduce convolution artifacts
+    with tf.variable_scope(name):
+        w = get_variable_w(k_h, k_w, input_, output_dim, stddev)
+        # This is meant to reduce boundary artifacts
+        padded = tf.pad(input_, [[0, 0],
+            [k_h-1, 0],
+            [k_w-1, 0],
+            [0, 0]])
+        conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
+
+        biases = tf.get_variable('biases', [output_dim], initializer=tf.constant_initializer(0.0))
+        conv = tf.nn.bias_add(conv, biases)
+
+        return conv
+
 
 def deconv2d(input_, output_shape,
              k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
@@ -385,28 +411,6 @@ def decayer(x, name="decayer", shape=[1]):
 def decayer2(x, name="decayer"):
     return decayer(x, name=name, shape=[int(x.get_shape()[-1])])
 
-def constrained_conv2d(input_, output_dim,
-           k_h=6, k_w=6, d_h=2, d_w=2, stddev=0.02,
-           name="conv2d"):
-    assert k_h % d_h == 0
-    assert k_w % d_w == 0
-    # constrained to have stride be a factor of kernel width
-    # this is intended to reduce convolution artifacts
-    with tf.variable_scope(name):
-        w = tf.get_variable('w', [k_h, k_w, input_.get_shape()[-1], output_dim],
-                            initializer=tf.truncated_normal_initializer(stddev=stddev))
-
-        # This is meant to reduce boundary artifacts
-        padded = tf.pad(input_, [[0, 0],
-            [k_h-1, 0],
-            [k_w-1, 0],
-            [0, 0]])
-        conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
-
-        biases = tf.get_variable('biases', [output_dim], initializer=tf.constant_initializer(0.0))
-        conv = tf.nn.bias_add(conv, biases)
-
-        return conv
 
 def masked_relu(x, name="ignored"):
     shape = [int(e) for e in x.get_shape()]

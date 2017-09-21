@@ -17,8 +17,9 @@ pp = pprint.PrettyPrinter()
 get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 
 index = 0
+
 def get_image(image_path, image_size, is_crop=True, resize_w=64):
-global index
+    global index
     out = transform(imread(image_path), image_size, is_crop, resize_w)
     return out
 
@@ -250,3 +251,7 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+def slice_x_half_batch_norm(x, shape):
+    return tf.slice(x, [shape[0] // 2, 0, 0, 0],
+                    [shape[0] // 2, shape[1], shape[2], shape[3]])

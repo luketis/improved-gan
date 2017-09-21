@@ -54,9 +54,9 @@ def main(_):
                     )
 
         if FLAGS.is_train:
-            print "TRAINING"
+            print("TRAINING")
             dcgan.train(FLAGS)
-            print "DONE TRAINING"
+            print("DONE TRAINING")
         else:
             dcgan.load(FLAGS.checkpoint_dir)
 

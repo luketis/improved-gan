@@ -38,7 +38,7 @@ def main(argv):
     writer = tf.python_io.TFRecordWriter(outfile)
 
     for i, f in enumerate(files):
-        print i
+        print(i)
         image = get_image(f, IMSIZE, is_crop=True, resize_w=IMSIZE)
         image = colorize(image)
         assert image.shape == (IMSIZE, IMSIZE, 3)
