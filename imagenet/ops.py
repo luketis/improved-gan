@@ -22,17 +22,10 @@ class batch_norm(object):
             self.name = name
         self.half = half
 
-
-    def reshape(self, shape, x):
-        if len(shape) == 2:
-            x = tf.reshape(x, [shape[0], 1, 1, shape[1]])
-        elif len(shape) == 1:
-            x = tf.reshape(x, [shape[0], 1, 1, 1])
-        else:
-            assert False, shape
-        shape = x.get_shape().as_list()
-
-        return shape, x
+    def global_batch_norm(self, x):
+        return tf.nn.batch_norm_with_global_normalization(x,
+                    self.mean, self.variance, self.beta, self.gamma, self.epsilon,
+                        scale_after_normalization=True)
 
     def __call__(self, x, train=True):
         del train # unused
@@ -41,8 +34,7 @@ class batch_norm(object):
 
         needs_reshape = len(shape) != 4
         if needs_reshape:
-            orig_shape = shape
-            shape, x = self.reshape(shape, x)
+            shape, x, orig_shape = reshape(shape, x)
 
         with tf.variable_scope(self.name) as scope:
             self.gamma = tf.get_variable("gamma", [shape[-1]],
@@ -57,9 +49,8 @@ class batch_norm(object):
 
             self.mean, self.variance = tf.nn.moments(x, [0, 1, 2])
 
-            out =  tf.nn.batch_norm_with_global_normalization(
-                x, self.mean, self.variance, self.beta, self.gamma, self.epsilon,
-                scale_after_normalization=True)
+            out = self.global_batch_norm(x)
+
             if needs_reshape:
                 out = tf.reshape(out, orig_shape)
             return out
@@ -141,7 +132,7 @@ class batch_norm_cross(batch_norm):
             return out
 
 TRAIN_MODE = True
-class conv_batch_norm(object):
+class conv_batch_norm(batch_norm):
     """Code modification of http://stackoverflow.com/a/33950177"""
     def __init__(self, name="batch_norm", epsilon=1e-5, momentum=0.1,
         in_dim=None):
@@ -171,9 +162,8 @@ class conv_batch_norm(object):
 
             if self.train:
                 # with tf.control_dependencies([self.ema_apply_op]):
-                normalized_x = tf.nn.batch_norm_with_global_normalization(
-                        x, self.mean, self.variance, self.beta, self.gamma, self.epsilon,
-                        scale_after_normalization=True)
+                normalized_x = self.global_batch_norm(x)
+
             else:
                 normalized_x = tf.nn.batch_norm_with_global_normalization(
                     x, self.ema.average(self.mean), self.ema.average(self.variance), self.beta,

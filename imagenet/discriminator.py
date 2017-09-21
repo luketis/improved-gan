@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from itertools import count
 from ops import lrelu, conv2d, linear
 
 def discriminator(self, image, reuse=False, y=None, prefix=""):
@@ -44,44 +45,42 @@ def discriminator(self, image, reuse=False, y=None, prefix=""):
             mean=0.0,
             stddev=.1)
 
-    print "Discriminator shapes"
-    print "image: ", image.get_shape()
+    print("Discriminator shapes")
+    print("image: ", image.get_shape())
+
+    def conv_tower(inp, dims, names, suffix, d_hs, d_ws, k_ws, k_hs):
+        h = inp
+        for dim, name, d_h, d_w, k_w, k_h, i in zip(dims, names, d_hs, d_ws, k_ws, k_hs, count()):
+            h = lrelu(batch_norm(conv2d(h, dim, name=name + suffix, d_h=d_h, d_w=d_w,
+                                        k_w=k_w, k_h=k_h), "d_batch_norm_" + str(i) + suffix))
+            print("\th"+ str(i)+ " ", h.get_shape())
+        return h
+
     def tower(batch_norm, suffix):
         assert not self.y_dim
-        print "\ttower "+suffix
-        h0 = lrelu(batch_norm(conv2d(noisy_image, self.df_dim, name='d_h0_conv' + suffix, d_h=2, d_w=2,
-            k_w=3, k_h=3), "d_batch_norm_0" + suffix))
-        print "\th0 ", h0.get_shape()
-        h1 = lrelu(batch_norm(conv2d(h0, self.df_dim * 2, name='d_h1_conv' + suffix, d_h=2, d_w=2,
-            k_w=3, k_h=3), "d_batch_norm_1" + suffix))
-        print "\th1 ", h1.get_shape()
-        h2 = lrelu(batch_norm(conv2d(h1, self.df_dim * 4, name='d_h2_conv' + suffix, d_h=2, d_w=2,
-            k_w=3, k_h=3), "d_batch_norm_2" + suffix))
-        print "\th2 ", h2.get_shape()
+        print("\ttower "+suffix)
 
-        h3 = lrelu(batch_norm(conv2d(h2, self.df_dim*4, name='d_h3_conv' + suffix, d_h=1, d_w=1,
-            k_w=3, k_h=3), "d_batch_norm_3" + suffix))
-        print "\th3 ", h3.get_shape()
-        h4 = lrelu(batch_norm(conv2d(h3, self.df_dim*4, name='d_h4_conv' + suffix, d_h=1, d_w=1,
-            k_w=3, k_h=3), "d_batch_norm_4" + suffix))
-        print "\th4 ", h4.get_shape()
-        h5 = lrelu(batch_norm(conv2d(h4, self.df_dim*8, name='d_h5_conv' + suffix, d_h=2, d_w=2,
-            k_w=3, k_h=3), "d_batch_norm_5" + suffix))
-        print "\th5 ", h5.get_shape()
+    
+        d_wh = [2,2,2,1,1,2]
+        k_wh = [3 for i in range(6)]
+
+        h5 = conv_tower(noisy_image, [self.df_dim, self.df_dim*2, self.df_dim*4, self.df_dim*4, self.df_dim*4, self.df_dim*8],
+                        ['d_h' + str(i) + "_conv" for i in range(6)], d_wh, d_wh, k_wh, k_wh)
 
         h6 = lrelu(batch_norm(conv2d(h5, self.df_dim*8, name='d_h6_conv' + suffix,
             k_w=3, k_h=3), "d_batch_norm_6" + suffix))
-        print "\th6 ", h6.get_shape()
+        print("\th6 ", h6.get_shape())
+
         # return tf.reduce_mean(h6, [1, 2])
         h6_reshaped = tf.reshape(h6, [batch_size, -1])
-        print '\th6_reshaped: ', h6_reshaped.get_shape()
+        print('\th6_reshaped: ', h6_reshaped.get_shape())
 
         h7 = lrelu(batch_norm(linear(h6_reshaped, self.df_dim * 40, scope="d_h7" + suffix), "d_batch_norm_7" + suffix))
 
         return h7
 
     h = tower(self.set_batch_normx, "")
-    print "h: ", h.get_shape()
+    print("h: ", h.get_shape())
 
     n_kernels = 300
     dim_per_kernel = 50
@@ -100,16 +99,22 @@ def discriminator(self, image, reuse=False, y=None, prefix=""):
         m = int(m)
         n = int(n)
         return tf.slice(tens, [0, 0, second * self.batch_size], [m, n, self.batch_size])
+
     # TODO: speedup by allocating the denominator directly instead of constructing it by sum
     #       (current version makes it easier to play with the mask and not need to rederive
     #        the denominator)
-    f1 = tf.reduce_sum(half(masked, 0), 2) / tf.reduce_sum(half(mask, 0))
-    f2 = tf.reduce_sum(half(masked, 1), 2) / tf.reduce_sum(half(mask, 1))
+
+    def feat_reduce(halve):
+        halved = half(masked, halve)
+        return tf.reduce_sum(halved, 2) / tf.reduce_sum(halved)
+
+    f1, f2 = feat_reduce(0), feat_reduce(1)
+
 
     minibatch_features = [f1, f2]
 
     x = tf.concat(1, [h] + minibatch_features)
-    print "x: ", x.get_shape()
+    print("x: ", x.get_shape())
     # x = tf.nn.dropout(x, .5)
 
     class_logits = linear(x, num_classes, 'd_indiv_logits')

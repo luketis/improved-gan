@@ -21,7 +21,7 @@ class Generator(object):
                                 initializer=tf.random_uniform_initializer(minval, maxval),
                                 trainable=False)
                     if z.device != "/device:GPU:0":
-                        print "z.device is " + str(z.device)
+                        print("z.device is " + str(z.device))
                         assert False
             else:
                 z = tf.random_uniform(shape,
@@ -65,6 +65,8 @@ class Generator(object):
             return out
 
         assert not dcgan.y_dim
+
+
         # project `z` and reshape
         z_ = reuse_wrapper(linear(z, dcgan.gf_dim*8*4*4, 'g_h0_lin', with_w=make_vars), 'h0_w', 'h0_b')
 
@@ -109,7 +111,7 @@ class Generator(object):
         else:
             h3_name = "h3_relu_reuse"
         h3 = tf.nn.relu(dcgan.virt_batch_norm(h3, "g_virt_batch_norm_3"), name=h3_name)
-        print "h3 shape: ", h3.get_shape()
+        print("h3 shape: ", h3.get_shape())
 
         quarter = dcgan.gf_dim // 4
         if quarter == 0:
@@ -127,7 +129,7 @@ class Generator(object):
                 name='g_h4', with_w=make_vars),
             'h4_w', 'h4_b')
         h4 = tf.nn.relu(dcgan.virt_batch_norm(h4, "g_virt_batch_norm_4"))
-        print "h4 shape: ", h4.get_shape()
+        print("h4 shape: ", h4.get_shape())
 
         eighth = dcgan.gf_dim // 8
         if eighth == 0:
@@ -143,7 +145,7 @@ class Generator(object):
                 name='g_h5', with_w=make_vars),
             'h5_w', 'h5_b')
         h5 = tf.nn.relu(dcgan.virt_batch_norm(h5, "g_virt_batch_norm_5"))
-        print "h5 shape: ", h5.get_shape()
+        print("h5 shape: ", h5.get_shape())
 
         sixteenth = dcgan.gf_dim // 16
         if sixteenth == 0:
@@ -161,7 +163,7 @@ class Generator(object):
                 init_bias=dcgan.out_init_b,
                 stddev=dcgan.out_stddev),
             'h6_w', 'h6_b')
-        print 'h6 shape: ', h6.get_shape()
+        print('h6 shape: ', h6.get_shape())
 
         out = tf.nn.tanh(h6)
 

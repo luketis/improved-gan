@@ -255,3 +255,17 @@ def mkdir_p(path):
 def slice_x_half_batch_norm(x, shape):
     return tf.slice(x, [shape[0] // 2, 0, 0, 0],
                     [shape[0] // 2, shape[1], shape[2], shape[3]])
+
+def reshape(x, shape):
+    orig_shape = shape
+    
+    if len(shape) == 2:
+        x = tf.reshape(x, [shape[0], 1, 1, shape[1]])
+    elif len(shape) == 1:
+        x = tf.reshape(x, [shape[0], 1, 1, 1])
+    else:
+        assert False, shape
+            
+    shape = x.get_shape().as_list()
+
+    return x, shape, orig_shape

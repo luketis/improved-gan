@@ -286,21 +286,6 @@ class VIRT_BATCH_NORM(object):
     Virtual Batch Normalization
     """
 
-    def reshape(self, x, shape):
-        orig_shape = shape
-
-        if len(shape) == 2:
-            x = tf.reshape(x, [shape[0], 1, 1, shape[1]])
-        elif len(shape) == 1:
-            x = tf.reshape(x, [shape[0], 1, 1, 1])
-        else:
-            assert False, shape
-            
-        shape = x.get_shape().as_list()
-
-        return x, shape, orig_shape
-
-
     def __init__(self, x, name, epsilon=1e-5, half=None, log=False, per_pixel=False):
         """
         x is the reference batch
@@ -313,7 +298,7 @@ class VIRT_BATCH_NORM(object):
         self.log = log
         self.per_pixel = per_pixel
         if needs_reshape:
-            x, shape, orig_shape = self.reshape(x, shape)
+            x, shape, orig_shape = reshape(x, shape)
 
         with tf.variable_scope(name) as scope:
 
